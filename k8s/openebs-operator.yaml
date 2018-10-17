@@ -83,6 +83,34 @@ data:
       install:
       - version: "0.7.0"
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: m-apiserver-config
+  namespace: openebs
+data:
+  # This is to over-ride the values of `config/MayaConfig` struct
+  m-apiserver.hcl: |
+    region = "BANG-EAST"
+    enable_debug = true
+    ports {
+        http = 1234
+    }
+    addresses {
+        http = "127.0.0.1"
+    }
+    advertise {
+    }
+    leave_on_interrupt = true
+    leave_on_terminate = true
+    enable_syslog = true
+    syslog_facility = "LOCAL1"
+    http_api_response_headers {
+        Access-Control-Allow-Origin = "*"
+    }
+    app_metrics = false
+
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -99,9 +127,13 @@ spec:
       containers:
       - name: maya-apiserver
         imagePullPolicy: IfNotPresent
-        image: openebs/m-apiserver:ci
+        image: vharsh/m-apiserver:latest
         ports:
         - containerPort: 5656
+        volumeMounts:
+        - name: mapstructure-override
+          mountPath: /etc/m-apiserver.hcl
+          readOnly: true
         env:
         # OPENEBS_IO_KUBE_CONFIG enables maya api service to connect to K8s
         # based on this config. This is ignored if empty.
@@ -170,6 +202,10 @@ spec:
             - version
           initialDelaySeconds: 30
           periodSeconds: 60
+      volumes:
+      - name: mapstructure-override
+        configMap:
+           name: m-apiserver-config
 ---
 apiVersion: v1
 kind: Service
@@ -424,4 +460,3 @@ spec:
       - name: sparsepath
         hostPath:
           path: /var/openebs/sparse
----
